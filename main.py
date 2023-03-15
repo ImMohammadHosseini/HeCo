@@ -56,7 +56,7 @@ torch.cuda.manual_seed(seed)
 if __name__ == "__main__":
     data = load_dataset (opts.dataset)
     
-    model = HeCo()
+    model = HeCo(opts.hidden_dim, data.node_types)
     embeddingTrainer = EmbeddingTrainer(model)
 
 

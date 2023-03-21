@@ -2,8 +2,8 @@
 import torch.nn as nn
 import torch.nn.functional as F
 
-from mp_encoder import Mp_encoder
-from sc_encoder import Sc_encoder
+from .mp_encoder import Mp_encoder
+from .sc_encoder import Sc_encoder
 
 class HeCo (nn.Module):
     def __init__ (self, hidden_dim, nodes_type, projection_drop):    
@@ -29,7 +29,7 @@ class HeCo (nn.Module):
             nn.ELU(),
             nn.Linear(hidden_dim, hidden_dim)
         )
-    def forward (self, graph, train=False):
+    def forward (self, graph, mode="test"):
         for i, ntype in enumerate(self.nodes_type):
             graph[ntype].x = F.elu(self.feat_drop(
                 self.node_project[i](graph[ntype].x)))
@@ -37,7 +37,7 @@ class HeCo (nn.Module):
         z_mp = self.mp()
         z_sc = self.sc()
         
-        if train:
+        if mode == "train":
             z_proj_mp = self.proj(z_mp)
             z_proj_sc = self.proj(z_sc)
             return z_proj_mp, z_proj_sc

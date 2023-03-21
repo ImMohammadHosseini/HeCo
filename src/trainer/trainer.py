@@ -18,16 +18,13 @@ class EmbeddingTrainer(pl.LightningModule):
         self.loss_function = loss_function
         
     
-    def forward (self, input_graph, **kwargs):
-        x = self.model(x, edge_index)
-        
-        self.loss_function
-        
+    def forward (self, input_graph, mode="test"):
+        return self.model(input_graph, mode)
         
     def training_step (self, batch, batch_idx):
-        loss, acc = self.forward(batch, mode="train")
+        mp_result, sc_result = self.forward(batch, mode="train")
+        loss = self.loss_function(mp_result, sc_result)
         self.log("train_loss", loss)
-        self.log("train_acc", acc)
         return loss
     
     def configure_optimizers (self):
@@ -35,5 +32,10 @@ class EmbeddingTrainer(pl.LightningModule):
                               weight_decay=2e-3)
         return optimizer
     
-    def augmentation (self):
-        pass
+    def validation_step(self, batch, batch_idx):
+        mp_result, sc_result = self.forward(batch, mode="train")
+        loss = self.loss_function(mp_result, sc_result)
+        self.log("val_loss", loss)
+
+    def test_step(self, batch, batch_idx):
+        mp_result = self.forward(batch, mode="test")

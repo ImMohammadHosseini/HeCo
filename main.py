@@ -5,6 +5,11 @@ import torch
 from utils.util import load_dataset, set_defaults
 from src.models.heco import HeCo
 from src.trainer.trainer import EmbeddingTrainer
+from src.contrastiveLoss import contrastiveLoss
+from pytorch_lightning.loggers import TensorBoardLogger
+from pytorch_lightning.callbacks import ModelCheckpoint
+from pytorch_lightning import Trainer
+import pytorch_lightning 
 import warnings
 import datetime
 import pickle as pkl
@@ -48,6 +53,7 @@ opts, args = parser.parse_args()
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 seed = opts.seed
+pytorch_lightning.seed_everything(seed, True)
 numpy.random.seed(seed)
 random.seed(seed)
 torch.manual_seed(seed)
@@ -56,8 +62,17 @@ torch.cuda.manual_seed(seed)
 if __name__ == "__main__":
     data = load_dataset (opts.dataset)
     
-    model = HeCo(opts.hidden_dim, data.node_types)
-    embeddingTrainer = EmbeddingTrainer(model)
+    embeddingTrainer = EmbeddingTrainer(HeCo(opts.hidden_dim, data.node_types), 
+                                        contrastiveLoss)
+    
+    tb_logger =  TensorBoardLogger(save_dir='/pretrained',
+                                   name='heco',)
+    trainer = Trainer(logger=tb_logger, callbacks=[ 
+        ModelCheckpoint(save_weights_only=True, mode="max",
+                                         monitor= "val_loss")], 
+        accelerator="auto", max_epochs=200, 
+        enable_progress_bar=False,)
 
+    trainer.fit(embeddingTrainer, data, data)
 
 

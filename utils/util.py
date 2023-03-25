@@ -1,5 +1,6 @@
 
 import os
+from os import path, makedirs
 import torch
 from torch_geometric.datasets.dblp import DBLP
 from torch_geometric.datasets.aminer import AMiner
@@ -8,8 +9,8 @@ import itertools
 from copy import deepcopy
 
 class mp_type:
-    DBLP = ['AUTHOR_PAPER_AUTHOR', 'AUTHOR_PAPER_CONFERENCE_PAPER_AUTHOR',
-            'AUTHOR_PAPER_TERM_PAPER_AUTHOR']
+    DBLP = ['author_paper_author', 'author_paper_conference_paper_author',
+            'author_paper_term_paper_author']
     ACM = []
     
     
@@ -29,11 +30,15 @@ def set_defaults(parser):
     elif dataset == "freebase":pass
 
 
-def getMPs (graphData, mpTypes):
+def getMPs (graphData, mpTypes, savePath):
+    makedirs(savePath)
     mps = []
+    #newLinkType = []
     for mpt in mpTypes:
         nodes = [node for node in mpt.split('_')[int(len(mpt.split('_'))/2):]]
         new_nei = []
+        sourceName=nodes[-1]; destName=nodes[-1] 
+        linkName=nodes[1]+'_'+nodes[0]+'_'+nodes[1] if len(nodes)>2 else nodes[0]
         for i in range(0, len(nodes)-1):
             for graphEdge in graphData.edge_types:
                 if graphEdge[0] == nodes[i] and graphEdge[2] == nodes[i+1]:
@@ -65,14 +70,30 @@ def getMPs (graphData, mpTypes):
             new_source=list(new_nei[0])+list(new_nei[1])
             new_dest=list(new_nei[1])+list(new_nei[0])
             new_nei=np.unique([new_source,new_dest],axis=1)
-        mps.append(torch.tensor(new_nei))        
+        torch.save(torch.tensor(new_nei), savePath+'/'+mpt+'.pt')
+        mps.append(torch.tensor(new_nei)) 
+        print(mpt)
+        #graphData[sourceName, linkName, destName].edge_index = torch.tensor(
+        #                                                                new_nei)
+        #newLinkType.append([sourceName, linkName, destName])
+    return mps
+    #return newLinkType
+def loadMPs (mpTypes, savePath):
+    mps=[]
+    for mpt in mpTypes:
+        mps.append(torch.load(savePath+'/'+mpt+'.pt'))
     return mps
     
 def load_dataset(name):
     if name == "acm":pass
     elif name == "dblp":
-        graphData = DBLP(os.getcwd()+'/datasets/dblp').data
-        return graphData, getMPs(graphData, mp_type.DBLP)
+        datasetPath=os.getcwd()+'/datasets/dblp'
+        graphData = DBLP(datasetPath).data
+        if not path.exists(datasetPath+'/mps'):mps=getMPs(graphData, 
+                                                          mp_type.DBLP, 
+                                                          datasetPath+'/mps')
+        else : mps=loadMPs(mp_type.DBLP, datasetPath+'/mps')
+        return graphData, mps
     elif name == "aminer":
         return AMiner(os.getcwd()+'/datasets/aminer').data
     elif name == "freebase":pass

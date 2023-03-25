@@ -45,7 +45,7 @@ parser.add_option('--feat_drop', type=float)
 parser.add_option('--attn_drop', type=float)
 parser.add_option('--sample_rate', nargs='+', type=int,)
 parser.add_option('--lam', type=float, default=0.5)
-parser.add_option('--eva_lr', type=float)
+
 
 set_defaults(parser)
 opts, args = parser.parse_args()
@@ -60,9 +60,10 @@ torch.manual_seed(seed)
 torch.cuda.manual_seed(seed)
 
 if __name__ == "__main__":
-    data = load_dataset (opts.dataset)
-    
-    embeddingTrainer = EmbeddingTrainer(HeCo(opts.hidden_dim, data.node_types), 
+    data, mps = load_dataset (opts.dataset)
+    P = int(len(mps))
+    embeddingTrainer = EmbeddingTrainer(HeCo(opts.hidden_dim, data.node_types,
+                                             opts.feat_drop, opts.attn_drop, P), 
                                         contrastiveLoss)
     
     tb_logger =  TensorBoardLogger(save_dir='/pretrained',
@@ -70,7 +71,7 @@ if __name__ == "__main__":
     trainer = Trainer(logger=tb_logger, callbacks=[ 
         ModelCheckpoint(save_weights_only=True, mode="max",
                                          monitor= "val_loss")], 
-        accelerator="auto", max_epochs=200, 
+        accelerator="auto", max_epochs=opts.nb_epochs, 
         enable_progress_bar=False,)
 
     trainer.fit(embeddingTrainer, data, data)

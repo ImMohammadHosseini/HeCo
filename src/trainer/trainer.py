@@ -3,18 +3,16 @@
 
 import pytorch_lightning as pl
 from torch import optim,Tensor
-
+from copy import deepcopy
 
 class EmbeddingTrainer(pl.LightningModule):
 
     def __init__(self,
                  model,
-                 loss_function,
-                 params: dict) -> None:
+                 loss_function) -> None:
         super(EmbeddingTrainer, self).__init__()
 
         self.model = model
-        self.params = params
         self.loss_function = loss_function
         
     
@@ -22,7 +20,7 @@ class EmbeddingTrainer(pl.LightningModule):
         return self.model(input_graph, mode)
         
     def training_step (self, batch, batch_idx):
-        mp_result, sc_result = self.forward(batch, mode="train")
+        mp_result, sc_result = self.forward(deepcopy(batch), mode="train")
         loss = self.loss_function(mp_result, sc_result)
         self.log("train_loss", loss)
         return loss
@@ -33,9 +31,9 @@ class EmbeddingTrainer(pl.LightningModule):
         return optimizer
     
     def validation_step(self, batch, batch_idx):
-        mp_result, sc_result = self.forward(batch, mode="train")
+        mp_result, sc_result = self.forward(deepcopy(batch), mode="train")
         loss = self.loss_function(mp_result, sc_result)
         self.log("val_loss", loss)
 
     def test_step(self, batch, batch_idx):
-        mp_result = self.forward(batch, mode="test")
+        mp_result = self.forward(deepcopy(batch), mode="test")

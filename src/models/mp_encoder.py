@@ -1,4 +1,5 @@
 
+import torch
 import torch.nn as nn
 from torch_geometric.nn import GCNConv
 
@@ -43,7 +44,7 @@ class Mp_encoder(nn.Module):
     def forward (self, h, mps):
         embeds = []
         for i in range(self.P):
-            embeds.append(self.node_level[i](h, mps[i]))
+            embeds.append(self.gcn_layers[i](h, mps[i]))
         z_mp = self.att(embeds)
         return z_mp
         

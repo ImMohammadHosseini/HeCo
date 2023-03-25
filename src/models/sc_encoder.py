@@ -37,7 +37,8 @@ class inter_att(nn.Module):
 
 
 class Sc_encoder(nn.Module):
-    def __init__(self, hidden_dim, sample_rate, attn_drop):
+    #TODO check sample_rate
+    def __init__(self, hidden_dim, attn_drop):
         super(Sc_encoder, self).__init__()
         
         self.conv = HeteroConv({('paper', 'to', 'author'):GATConv((-1,-1), 
@@ -54,6 +55,6 @@ class Sc_encoder(nn.Module):
         x_dict = self.conv(x_dict, edge_index_dict)
         x_dict = {key: x.relu() for key, x in x_dict.items()}
             
-        authorNode = graph['author'].x
+        authorNode = x_dict['author']
         z_mc = self.inter(authorNode)
         return z_mc

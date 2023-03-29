@@ -41,10 +41,11 @@ class Mp_encoder(nn.Module):
         self.P = P
         self.gcn_layers = nn.ModuleList([GCNConv(hidden_dim, hidden_dim) for _ in range(P)])
         self.attention = Attention(hidden_dim, attn_drop)
-    def forward (self, h, mps):
+        
+    def forward (self, h, mps, device):
         embeds = []
         for i in range(self.P):
-            embeds.append(self.gcn_layers[i](h, mps[i]))
-        z_mp = self.att(embeds)
+            embeds.append(self.gcn_layers[i](h, mps[i].to(device)))
+        z_mp = self.attention(embeds)
         return z_mp
         

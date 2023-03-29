@@ -7,12 +7,22 @@ from torch_geometric.datasets.aminer import AMiner
 import numpy as np
 import itertools
 from copy import deepcopy
+from scipy.sparse import csr_matrix, save_npz, load_npz
 
 class mp_type:
     DBLP = ['author_paper_author', 'author_paper_conference_paper_author',
             'author_paper_term_paper_author']
     ACM = []
     
+
+def sparse_mx_to_torch_sparse_tensor(sparse_mx):
+    sparse_mx = sparse_mx.tocoo().astype(np.float32)
+    indices = torch.from_numpy(
+        np.vstack((sparse_mx.row, sparse_mx.col)).astype(np.int64))
+    values = torch.from_numpy(sparse_mx.data)
+    shape = torch.Size(sparse_mx.shape)
+    return torch.sparse.FloatTensor(indices, values, shape)
+
     
 def set_defaults(parser):
     opts, args = parser.parse_args()
@@ -30,8 +40,9 @@ def set_defaults(parser):
     elif dataset == "freebase":pass
 
 
-def getMPs (graphData, mpTypes, savePath):
+def getMatrixs (graphData, mpTypes, savePath):
     makedirs(savePath)
+    pos = csr_matrix((4057, 4057), dtype=np.int8)
     mps = []
     #newLinkType = []
     for mpt in mpTypes:
@@ -53,6 +64,7 @@ def getMPs (graphData, mpTypes, savePath):
                     indx = np.where(source == us)
                     if len(indx[0]) > 1:
                         new_nei+=list(itertools.combinations(dest[indx[0]],2))
+                for i in new_nei: pos[i] += 1
                 
             else:
                 half_nei = deepcopy(new_nei)
@@ -61,39 +73,48 @@ def getMPs (graphData, mpTypes, savePath):
                 #half_dest = deepcopy(new_source)
                 #unique_source = np.unique(half_source)
                 for ind in range(len(half_nei[0])):
-                    first_part = half_nei[0][ind]
+                    first_part = half_nei[0][ind]s
                     fp_indx = np.where(source == first_part)
                     second_part = half_nei[1][ind]
                     sp_indx = np.where(source == second_part)
-                    new_nei+=[(ns,nd) for ns in dest[fp_indx] for nd in dest[sp_indx]]
+                    for ns in dest[fp_indx]: 
+                        for nd in dest[sp_indx]:
+                            new_nei.append((ns,nd))
+                            pos[ns,nd] += 1
+                    #new_nei+=[(ns,nd) for ns in dest[fp_indx] for nd in dest[sp_indx]]
             new_nei=list(np.array(new_nei).T)
             new_source=list(new_nei[0])+list(new_nei[1])
             new_dest=list(new_nei[1])+list(new_nei[0])
             new_nei=np.unique([new_source,new_dest],axis=1)
         torch.save(torch.tensor(new_nei), savePath+'/'+mpt+'.pt')
         mps.append(torch.tensor(new_nei)) 
-        print(mpt)
         #graphData[sourceName, linkName, destName].edge_index = torch.tensor(
         #                                                                new_nei)
         #newLinkType.append([sourceName, linkName, destName])
-    return mps
+    save_npz(savePath+'/'+'pos.pt', pos)
+    return mps, pos
     #return newLinkType
-def loadMPs (mpTypes, savePath):
+    
+def loadMatrixs (mpTypes, savePath):
     mps=[]
+    pos = load_npz(savePath + "pos.npz")
     for mpt in mpTypes:
         mps.append(torch.load(savePath+'/'+mpt+'.pt'))
-    return mps
+    return mps, pos
     
-def load_dataset(name):
+def load_dataset(name, pos_threshold):
     if name == "acm":pass
     elif name == "dblp":
         datasetPath=os.getcwd()+'/datasets/dblp'
         graphData = DBLP(datasetPath).data
-        if not path.exists(datasetPath+'/mps'):mps=getMPs(graphData, 
-                                                          mp_type.DBLP, 
-                                                          datasetPath+'/mps')
-        else : mps=loadMPs(mp_type.DBLP, datasetPath+'/mps')
-        return graphData, mps
+        if not path.exists(datasetPath+'/matix'):mps=getMatrixs(graphData, 
+                                                              mp_type.DBLP, 
+                                                              datasetPath+'/matix')
+        else : mps, pos=loadMatrixs(mp_type.DBLP, datasetPath+'/matix')
+        pos = pos > pos_threshold
+        print (pos)
+        pos = sparse_mx_to_torch_sparse_tensor(pos)
+        return graphData, mps, pos
     elif name == "aminer":
         return AMiner(os.getcwd()+'/datasets/aminer').data
     elif name == "freebase":pass

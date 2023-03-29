@@ -25,6 +25,11 @@ class inter_att(nn.Module):
         attn_curr = self.attn_drop(self.att)
         for embed in embeds:
             sp = self.tanh(self.fc(embed)).mean(dim=0)
+            print(self.tanh(self.fc(embed)).size())
+            #print(sp)
+            #print(sp.t())
+            print(sp.size())
+            print(attn_curr.size())
             beta.append(attn_curr.matmul(sp.t()))
         beta = torch.cat(beta, dim=-1).view(-1)
         beta = self.softmax(beta)
@@ -56,5 +61,7 @@ class Sc_encoder(nn.Module):
         x_dict = {key: x.relu() for key, x in x_dict.items()}
             
         authorNode = x_dict['author']
-        z_mc = self.inter(authorNode)
+        print(authorNode.size())
+        print('j')
+        z_mc = self.inter([authorNode])
         return z_mc
